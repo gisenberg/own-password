@@ -2,7 +2,11 @@ import { create } from "zustand";
 import type { OPVault } from "@/lib/opvault";
 import type { VaultItem, ItemDetail, FolderInfo } from "@/lib/opvault";
 import { InvalidPasswordError } from "@/lib/opvault";
-import { openVaultDirectory, loadVaultFromDirectory } from "@/lib/fs";
+import {
+  FSAccessDirectoryReader,
+  openVaultDirectory,
+  loadVaultFromDirectory,
+} from "@/lib/fs";
 
 export type VaultStatus =
   | "idle"
@@ -22,6 +26,7 @@ interface VaultState {
   decryptingDetail: boolean;
 
   loadVault: () => Promise<void>;
+  loadVaultFromHandle: (handle: FileSystemDirectoryHandle) => Promise<void>;
   unlock: (password: string) => Promise<void>;
   lock: () => void;
   selectItem: (uuid: string) => Promise<void>;
@@ -48,6 +53,26 @@ export const useVaultStore = create<VaultState>((set, get) => ({
 
       set({ status: "loading", error: null });
 
+      const vault = await loadVaultFromDirectory(reader);
+      vaultInstance = vault;
+
+      set({
+        status: "locked",
+        vaultName: vault.name,
+      });
+    } catch (e) {
+      set({
+        status: "idle",
+        error: e instanceof Error ? e.message : "Failed to load vault",
+      });
+    }
+  },
+
+  loadVaultFromHandle: async (handle: FileSystemDirectoryHandle) => {
+    try {
+      set({ status: "loading", error: null });
+
+      const reader = new FSAccessDirectoryReader(handle);
       const vault = await loadVaultFromDirectory(reader);
       vaultInstance = vault;
 

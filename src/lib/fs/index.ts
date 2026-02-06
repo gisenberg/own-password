@@ -10,15 +10,20 @@ const BAND_HEX = "0123456789ABCDEF";
 export async function loadVaultFromDirectory(
   reader: VaultDirectoryReader
 ): Promise<OPVault> {
-  // Find the default profile directory
   // OPVault structure: <name>.opvault/default/
-  const profileContent = await reader.readFile("default/profile.js");
+  // macOS treats .opvault as a package bundle, so the user may need to
+  // select the "default" folder directly instead of the .opvault root.
+  // Detect which case we're in by checking for profile.js at both levels.
+  const hasDefault = await reader.hasFile("default/profile.js");
+  const prefix = hasDefault ? "default/" : "";
+
+  const profileContent = await reader.readFile(`${prefix}profile.js`);
   const profile = parseProfile(profileContent);
 
   // Load folders
   let folders = {};
-  if (await reader.hasFile("default/folders.js")) {
-    const foldersContent = await reader.readFile("default/folders.js");
+  if (await reader.hasFile(`${prefix}folders.js`)) {
+    const foldersContent = await reader.readFile(`${prefix}folders.js`);
     folders = parseFolders(foldersContent);
   }
 
@@ -26,7 +31,7 @@ export async function loadVaultFromDirectory(
   const allItems: Record<string, OPVaultRawItem> = {};
 
   for (const hex of BAND_HEX) {
-    const bandPath = `default/band_${hex}.js`;
+    const bandPath = `${prefix}band_${hex}.js`;
     if (await reader.hasFile(bandPath)) {
       const bandContent = await reader.readFile(bandPath);
       const items = parseBandFile(bandContent);

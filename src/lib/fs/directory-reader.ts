@@ -45,11 +45,19 @@ export class FSAccessDirectoryReader implements VaultDirectoryReader {
 }
 
 export async function openVaultDirectory(): Promise<FSAccessDirectoryReader | null> {
+  if (!("showDirectoryPicker" in window)) {
+    throw new Error(
+      "This browser does not support the File System Access API. Please use Chrome, Edge, or Brave."
+    );
+  }
   try {
     const handle = await window.showDirectoryPicker();
     return new FSAccessDirectoryReader(handle);
-  } catch {
-    // User cancelled
-    return null;
+  } catch (e) {
+    // User cancelled the picker
+    if (e instanceof DOMException && e.name === "AbortError") {
+      return null;
+    }
+    throw e;
   }
 }
